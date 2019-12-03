@@ -131,8 +131,6 @@ pub fn new_full<C: Send + Default + 'static>(config: Configuration<C, GenesisCon
 		.build()?;
 
 	if is_authority {
-		let client = service.client();
-
 		for _ in 0..threads {
 			let proposer = basic_authorship::ProposerFactory {
 				client: service.client(),
@@ -140,7 +138,7 @@ pub fn new_full<C: Send + Default + 'static>(config: Configuration<C, GenesisCon
 			};
 
 			let can_author_with =
-				consensus_common::CanAuthorWithNativeVersion::new(client.executor().clone());
+				consensus_common::AlwaysCanAuthor;
 
 			consensus_pow::start_mine(
 				Box::new(service.client().clone()),
