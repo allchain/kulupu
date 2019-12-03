@@ -26,7 +26,8 @@ primitives = { package = "sp-core", path = "vendor/substrate/primitives/core" }
 substrate-executor = { package = "sc-executor", path = "vendor/substrate/client/executor" }
 substrate-service = { package = "sc-service", path = "vendor/substrate/client/service" }
 inherents = { package = "sp-inherents", path = "vendor/substrate/primitives/inherents" }
-transaction-pool = { package = "sc-transaction-pool", path = "vendor/substrate/client/transaction-pool" }
+txpool = { package = "sc-transaction-pool", path = "vendor/substrate/client/transaction-pool" }
+txpool-api = { package = "sp-transaction-pool-api", path = "vendor/substrate/primitives/transaction-pool" }
 network = { package = "sc-network", path = "vendor/substrate/client/network" }
 substrate-client = { package = "sc-client", path = "vendor/substrate/client" }
 basic-authorship = { package = "sc-basic-authority", path = "vendor/substrate/client/basic-authorship" }
