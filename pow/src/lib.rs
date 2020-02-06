@@ -3,8 +3,9 @@ use std::cell::RefCell;
 use primitives::{U256, H256};
 use sr_primitives::generic::BlockId;
 use sr_primitives::traits::{
-	Block as BlockT, Header as HeaderT, ProvideRuntimeApi, UniqueSaturatedInto,
+	Block as BlockT, Header as HeaderT, UniqueSaturatedInto,
 };
+use sp_api::ProvideRuntimeApi;
 use client_api::{blockchain::HeaderBackend, backend::AuxStore};
 use codec::{Encode, Decode};
 use consensus_pow::PowAlgorithm;
@@ -144,7 +145,7 @@ impl<C> RandomXAlgorithm<C> {
 }
 
 impl<B: BlockT<Hash=H256>, C> PowAlgorithm<B> for RandomXAlgorithm<C> where
-	C: HeaderBackend<B> + AuxStore + ProvideRuntimeApi,
+	C: HeaderBackend<B> + AuxStore + ProvideRuntimeApi<B>,
 	C::Api: DifficultyApi<B, Difficulty> + AlgorithmApi<B>,
 {
 	type Difficulty = Difficulty;
