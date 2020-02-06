@@ -5,7 +5,7 @@ use std::str::FromStr;
 use std::collections::BTreeMap;
 use substrate_client::LongestChain;
 use kulupu_runtime::{self, GenesisConfig, opaque::Block, RuntimeApi, AccountId};
-use substrate_service::{error::{Error as ServiceError}, AbstractService, Configuration, ServiceBuilder};
+use sc_service::{error::{Error as ServiceError}, AbstractService, Configuration, ServiceBuilder};
 use network::{config::DummyFinalityProofRequestBuilder, construct_simple_protocol};
 use substrate_executor::native_executor_instance;
 use primitives::H256;
@@ -85,26 +85,32 @@ macro_rules! new_full_start {
 	($config:expr, $author:expr) => {{
 		let inherent_data_providers = crate::service::kulupu_inherent_data_providers($author)?;
 
-		let builder = substrate_service::ServiceBuilder::new_full::<
+		let builder = sc_service::ServiceBuilder::new_full::<
 			kulupu_runtime::opaque::Block, kulupu_runtime::RuntimeApi, crate::service::Executor
 		>($config)?
 			.with_select_chain(|_config, backend| {
 				Ok(substrate_client::LongestChain::new(backend.clone()))
 			})?
 			.with_transaction_pool(|config, client, _fetcher| {
-				let pool_api = txpool::FullChainApi::new(client.clone());
-				let pool = txpool::BasicPool::new(config, pool_api);
-				let maintainer = txpool::FullBasicPoolMaintainer::new(pool.pool().clone(), client);
-				let maintainable_pool = txpool_api::MaintainableTransactionPool::new(pool, maintainer);
-				Ok(maintainable_pool)
+				let pool_api = sc_transaction_pool::FullChainApi::new(client.clone());
+				let pool = sc_transaction_pool::BasicPool::new(config, std::sync::Arc::new(pool_api));
+				Ok(pool)
 			})?
 			.with_import_queue(|_config, client, select_chain, _transaction_pool| {
-				let import_queue = consensus_pow::import_queue(
-					Box::new(client.clone()),
+				let algorithm = kulupu_pow::RandomXAlgorithm::new(client.clone());
+
+				let block_import = consensus_pow::PowBlockImport::new(
 					client.clone(),
-					kulupu_pow::RandomXAlgorithm::new(client.clone()),
+					client.clone(),
+					algorithm.clone(),
 					0,
 					select_chain,
+					inherent_data_providers.clone(),
+				);
+
+				let import_queue = consensus_pow::import_queue(
+					Box::new(block_import),
+					algorithm,
 					inherent_data_providers.clone(),
 				)?;
 
@@ -116,9 +122,12 @@ macro_rules! new_full_start {
 }
 
 /// Builds a new service for a full client.
-pub fn new_full<C: Send + Default + 'static>(config: Configuration<C, GenesisConfig>, author: Option<&str>, threads: usize, round: u32)
-	-> Result<impl AbstractService, ServiceError>
-{
+pub fn new_full(
+	config: Configuration<GenesisConfig>,
+	author: Option<&str>,
+	threads: usize,
+	round: u32
+) -> Result<impl AbstractService, ServiceError> {
 	let is_authority = config.roles.is_authority();
 
 	let (builder, inherent_data_providers) = new_full_start!(config, author);
@@ -157,9 +166,10 @@ pub fn new_full<C: Send + Default + 'static>(config: Configuration<C, GenesisCon
 }
 
 /// Builds a new service for a light client.
-pub fn new_light<C: Send + Default + 'static>(config: Configuration<C, GenesisConfig>, author: Option<&str>)
-	-> Result<impl AbstractService, ServiceError>
-{
+pub fn new_light(
+	config: Configuration<GenesisConfig>,
+	author: Option<&str>
+) -> Result<impl AbstractService, ServiceError> {
 	let inherent_data_providers = kulupu_inherent_data_providers(author)?;
 
 	ServiceBuilder::new_light::<Block, RuntimeApi, Executor>(config)?
@@ -169,20 +179,30 @@ pub fn new_light<C: Send + Default + 'static>(config: Configuration<C, GenesisCo
 		.with_transaction_pool(|config, client, fetcher| {
 			let fetcher = fetcher
 				.ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
-			let pool_api = txpool::LightChainApi::new(client.clone(), fetcher.clone());
-			let pool = txpool::BasicPool::new(config, pool_api);
-			let maintainer = txpool::LightBasicPoolMaintainer::with_defaults(pool.pool().clone(), client, fetcher);
-			let maintainable_pool = txpool_api::MaintainableTransactionPool::new(pool, maintainer);
-			Ok(maintainable_pool)
+
+			let pool_api = sc_transaction_pool::LightChainApi::new(client.clone(), fetcher.clone());
+			let pool = sc_transaction_pool::BasicPool::with_revalidation_type(
+				config, Arc::new(pool_api), sc_transaction_pool::RevalidationType::Light,
+			);
+			Ok(pool)
 		})?
 		.with_import_queue_and_fprb(|_config, client, _backend, _fetcher, select_chain, _transaction_pool| {
 			let fprb = Box::new(DummyFinalityProofRequestBuilder::default()) as Box<_>;
-			let import_queue = consensus_pow::import_queue(
-				Box::new(client.clone()),
+
+			let algorithm = kulupu_pow::RandomXAlgorithm::new(client.clone());
+
+			let block_import = consensus_pow::PowBlockImport::new(
 				client.clone(),
-				kulupu_pow::RandomXAlgorithm::new(client.clone()),
+				client.clone(),
+				algorithm.clone(),
 				0,
 				select_chain,
+				inherent_data_providers.clone(),
+			);
+
+			let import_queue = consensus_pow::import_queue(
+				Box::new(block_import),
+				algorithm,
 				inherent_data_providers.clone(),
 			)?;
 

@@ -11,12 +11,12 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 mod difficulty;
 
 use rstd::prelude::*;
-use primitives::OpaqueMetadata;
+use primitives::{OpaqueMetadata, crypto::KeyTypeId};
 use sr_primitives::{
 	ApplyExtrinsicResult, transaction_validity::TransactionValidity,
 	generic, create_runtime_str, AnySignature,
 };
-use sr_primitives::traits::{NumberFor, BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, StaticLookup, Verify, ConvertInto};
+use sr_primitives::traits::{BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, StaticLookup, Verify, ConvertInto};
 use support::{weights::Weight, inherent::{CheckInherentsResult, InherentData}, traits::Randomness};
 use version::RuntimeVersion;
 #[cfg(feature = "std")]
@@ -161,9 +161,6 @@ impl timestamp::Trait for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: u128 = 500;
-	pub const TransferFee: u128 = 0;
-	pub const CreationFee: u128 = 0;
 	pub const TransactionBaseFee: u128 = 0;
 	pub const TransactionByteFee: u128 = 1;
 }
@@ -177,11 +174,16 @@ impl transaction_payment::Trait for Runtime {
 	type FeeMultiplierUpdate = ();
 }
 
+parameter_types! {
+	pub const ExistentialDeposit: u128 = 500;
+	pub const CreationFee: u128 = 0;
+}
+
 impl balances::Trait for Runtime {
 	/// The type for recording an account's balance.
 	type Balance = Balance;
-	/// What to do if an account's free balance gets zeroed.
-	type OnFreeBalanceZero = ();
+	/// What to do if an account is fully reaped from the system.
+	type OnReapAccount = System;
 	/// What to do if a new account is created.
 	type OnNewAccount = Indices;
 	/// The ubiquitous event type.
@@ -189,7 +191,6 @@ impl balances::Trait for Runtime {
 	type DustRemoval = ();
 	type TransferPayment = ();
 	type ExistentialDeposit = ExistentialDeposit;
-	type TransferFee = TransferFee;
 	type CreationFee = CreationFee;
 }
 
@@ -212,8 +213,8 @@ construct_runtime!(
 	{
 		System: system::{Module, Call, Storage, Config, Event},
 		Timestamp: timestamp::{Module, Call, Storage, Inherent},
-		Indices: indices::{default},
-		Balances: balances::{default, Error},
+		Indices: indices,
+		Balances: balances,
 		TransactionPayment: transaction_payment::{Module, Storage},
 		Difficulty: difficulty::{Module, Call, Storage, Config},
 		RandomnessCollectiveFlip: randomness_collective_flip::{Module, Call, Storage},
@@ -328,14 +329,20 @@ sr_api::impl_runtime_apis! {
 	}
 
 	impl offchain_primitives::OffchainWorkerApi<Block> for Runtime {
-		fn offchain_worker(number: NumberFor<Block>) {
-			Executive::offchain_worker(number)
+		fn offchain_worker(header: &<Block as BlockT>::Header) {
+			Executive::offchain_worker(header)
 		}
 	}
 
 	impl substrate_session::SessionKeys<Block> for Runtime {
 		fn generate_session_keys(_seed: Option<Vec<u8>>) -> Vec<u8> {
 			Default::default()
+		}
+
+		fn decode_session_keys(
+			_encoded: Vec<u8>,
+		) -> Option<Vec<(Vec<u8>, KeyTypeId)>> {
+			None
 		}
 	}
 

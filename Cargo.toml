@@ -21,16 +21,16 @@ parking_lot = "0.9.0"
 codec = { package = "parity-scale-codec", version = "1.0.0" }
 trie-root = "0.15.2"
 sr-io = { package = "sp-io", path = "vendor/substrate/primitives/io" }
-substrate-cli = { package = "sc-cli", path = "vendor/substrate/client/cli" }
+sc-cli = { path = "vendor/substrate/client/cli" }
 primitives = { package = "sp-core", path = "vendor/substrate/primitives/core" }
 substrate-executor = { package = "sc-executor", path = "vendor/substrate/client/executor" }
-substrate-service = { package = "sc-service", path = "vendor/substrate/client/service" }
+sc-service = { path = "vendor/substrate/client/service" }
 inherents = { package = "sp-inherents", path = "vendor/substrate/primitives/inherents" }
-txpool = { package = "sc-transaction-pool", path = "vendor/substrate/client/transaction-pool" }
+sc-transaction-pool = { path = "vendor/substrate/client/transaction-pool" }
 txpool-api = { package = "sp-transaction-pool", path = "vendor/substrate/primitives/transaction-pool" }
 network = { package = "sc-network", path = "vendor/substrate/client/network" }
 substrate-client = { package = "sc-client", path = "vendor/substrate/client" }
-basic-authorship = { package = "sc-basic-authority", path = "vendor/substrate/client/basic-authorship" }
+basic-authorship = { package = "sc-basic-authorship", path = "vendor/substrate/client/basic-authorship" }
 kulupu-runtime = { path = "runtime" }
 kulupu-primitives = { path = "primitives" }
 consensus-pow = { package = "sc-consensus-pow", path = "vendor/substrate/client/consensus/pow" }
@@ -51,8 +51,8 @@ vergen = "3"
 default = ["wasmtime"]
 wasmtime = [
 	"substrate-executor/wasmtime",
-	"substrate-cli/wasmtime",
-	"substrate-service/wasmtime",
+	"sc-cli/wasmtime",
+	"sc-service/wasmtime",
 ]
 
 [workspace]

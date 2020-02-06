@@ -7,10 +7,11 @@ mod chain_spec;
 #[macro_use]
 mod service;
 mod cli;
+mod command;
 
-pub use substrate_cli::{VersionInfo, IntoExit, error};
+pub use sc_cli::{VersionInfo, error};
 
-fn main() {
+fn main() -> Result<(), error::Error> {
 	let version = VersionInfo {
 		name: "Kulupu",
 		commit: env!("VERGEN_SHA_SHORT"),
@@ -19,10 +20,8 @@ fn main() {
 		author: "Wei Tang <hi@that.world>",
 		description: "Kulupu node implementation",
 		support_url: "https://github.com/kulupu/kulupu/issues",
+		copyright_start_year: 2019,
 	};
 
-	if let Err(e) = cli::run(::std::env::args(), cli::Exit, version) {
-		eprintln!("Fatal error: {}\n\n{:?}", e, e);
-		std::process::exit(1)
-	}
+	command::run(version)
 }

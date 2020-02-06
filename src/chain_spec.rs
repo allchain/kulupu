@@ -3,13 +3,12 @@ use kulupu_runtime::{
 	IndicesConfig, SystemConfig, DifficultyConfig, WASM_BINARY,
 };
 use kulupu_primitives::U256;
-use substrate_service;
 
 // Note this is the URL for the telemetry server
 //const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
-pub type ChainSpec = substrate_service::ChainSpec<GenesisConfig>;
+pub type ChainSpec = sc_service::ChainSpec<GenesisConfig>;
 
 /// The chain specification option. This is expected to come in from the CLI and
 /// is little more than one of a number of alternatives which can easily be converted
@@ -83,10 +82,16 @@ fn testnet_genesis(
 		}),
 		balances: Some(BalancesConfig {
 			balances: endowed_accounts.iter().cloned().map(|k|(k, 1 << 60)).collect(),
-			vesting: vec![],
 		}),
 		difficulty: Some(DifficultyConfig {
 			initial_difficulty: U256::from(200),
 		}),
 	}
+}
+
+pub fn load_spec(id: &str) -> Result<Option<ChainSpec>, String> {
+	Ok(match Alternative::from(id) {
+		Some(spec) => Some(spec.load()?),
+		None => None,
+	})
 }
