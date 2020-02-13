@@ -84,6 +84,7 @@ pub fn kulupu_inherent_data_providers(author: Option<&str>) -> Result<inherents:
 macro_rules! new_full_start {
 	($config:expr, $author:expr) => {{
 		let inherent_data_providers = crate::service::kulupu_inherent_data_providers($author)?;
+		let mut import_setup = None;
 
 		let builder = sc_service::ServiceBuilder::new_full::<
 			kulupu_runtime::opaque::Block, kulupu_runtime::RuntimeApi, crate::service::Executor
@@ -109,15 +110,17 @@ macro_rules! new_full_start {
 				);
 
 				let import_queue = consensus_pow::import_queue(
-					Box::new(block_import),
+					Box::new(block_import.clone()),
 					algorithm,
 					inherent_data_providers.clone(),
 				)?;
 
+				import_setup = Some(block_import);
+
 				Ok(import_queue)
 			})?;
 
-		(builder, inherent_data_providers)
+		(builder, import_setup, inherent_data_providers)
 	}}
 }
 
@@ -130,7 +133,7 @@ pub fn new_full(
 ) -> Result<impl AbstractService, ServiceError> {
 	let is_authority = config.roles.is_authority();
 
-	let (builder, inherent_data_providers) = new_full_start!(config, author);
+	let (builder, mut import_setup, inherent_data_providers) = new_full_start!(config, author);
 
 	let service = builder
 		.with_network_protocol(|_| Ok(NodeProtocol::new()))?
@@ -138,6 +141,9 @@ pub fn new_full(
 			Ok(Arc::new(()) as _)
 		})?
 		.build()?;
+
+	let block_import = import_setup.take()
+		.expect("Block Import are present for Full Services or setup failed before. qed");
 
 	if is_authority {
 		for _ in 0..threads {
@@ -147,7 +153,7 @@ pub fn new_full(
 			};
 
 			consensus_pow::start_mine(
-				Box::new(service.client().clone()),
+				Box::new(block_import.clone()),
 				service.client(),
 				kulupu_pow::RandomXAlgorithm::new(service.client()),
 				proposer,
